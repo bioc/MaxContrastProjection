@@ -1,0 +1,6 @@
+- Make the radius of fixGaussianBlur variable based on intensity of object
+    -- Brighter objects have brighter rings, darker objects shouldn't be over-
+       corrected
+
+- In case of overlapping organoids, find a way to "mix" the intensity values
+  to create a smooth transition

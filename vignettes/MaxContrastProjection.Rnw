@@ -1,0 +1,318 @@
+%\VignetteIndexEntry{MaxContrastProjection}
+%\VignetteKeywords{MaxContrastProjection}
+%\VignettePackage{MaxContrastProjection}
+%\VignetteEngine{knitr::knitr}
+
+\documentclass[10pt,a4paper]{article}
+
+<<style, echo=FALSE, results='asis'>>=
+BiocStyle::latex()
+@
+
+\RequirePackage{amsfonts,amsmath,amstext,amssymb,amscd}
+\usepackage{graphicx}
+\usepackage{color,colortbl}
+\usepackage{caption}
+\usepackage{subcaption}
+%\usepackage{courier}
+%\graphicspath{ {../inst/extdata/} }
+%\SweaveOpts{keep.source=TRUE,eps=FALSE}
+
+\begin{document}
+%\SweaveOpts{concordance=TRUE}
+
+\title{MaxContrastProjection}
+
+\author{Jan Sauer}
+
+\maketitle
+
+\tableofcontents
+
+\section{Getting Started}
+
+\Biocpkg{MaxContrastProjection} is an \R{} package to project 3D image stacks 
+including common projections, such as the maximum and minimum intensity 
+projections, as well as a novel maximum contrast projection to retain 
+information about fine structures that would otherwise be lost in intensity-
+based projections. This package is distributed as part of the \Bioconductor{} 
+project and can be installed by starting \R{} and running:
+
+<<eval=FALSE>>=
+source("https://bioconductor.org/biocLite.R")
+biocLite("MaxContrastProjection")
+@
+
+\section{Introduction}
+
+A common problem when recording 3D fluorescent microscopy images is how to 
+properly present these results in 2D. Large structures with elements in 
+multiple focal planes become very difficult to image properly without the use 
+of some form of projection. Objects in the focal plane will be sharp and the 
+emitted light focused, whereas objects outside of the focal plane will be 
+blurred and the emitted light is spread out over a larger area of the 
+detector. Consequently, a maximum intensity projection is commonly used on the 
+image stack in order to find the focal plane of an object.
+
+The problem with this approach is that the blurring makes it more difficult to 
+tell apart foreground and background of the image. If the exact position of an 
+object in a medium is unknown, or if it has a 3D structure, it must be imaged 
+at various focal lengths. Fig. \ref{fig:dapizstacks} shows a segment of an 
+organoid imaged at different focal lengths.
+
+\begin{figure}[!htb]
+\centering
+\includegraphics[width=0.95\textwidth]{imgs/DAPI_montage.eps}
+\caption{A cluster of cells in an organoid at different focal lengths}
+\label{fig:dapizstacks}
+\end{figure}
+
+A look at the maximum intensity projection, shown in Fig. 
+\ref{fig:dapimaxproj}, reveals that much of the distinction between foreground 
+and background is lost in this projection. Consequently, a different type of 
+projection is necessary to retain important information. The z-layer in which 
+a region of an image is in focus is the z-layer with the least amount of 
+blurring, i.e. with the highest contrast of intensity values within that area. 
+Fig. \ref{fig:dapicontrastproj} shows this "maximum contrast projection". 
+Comparing it to the maximum intensity projection shows that the individual 
+cells are much easier to differentiate.
+
+\begin{figure}[!htb]
+\centering
+\begin{subfigure}[b]{0.45\textwidth}
+    \includegraphics[width=\textwidth]{imgs/DAPI_maxproj.eps}
+    \caption{Maximum intensity projection}
+    \label{fig:dapimaxproj}
+\end{subfigure}
+\begin{subfigure}[b]{0.45\textwidth}
+    \includegraphics[width=\textwidth]{imgs/DAPI_contrastproj.eps}
+    \caption{Maximum contrast projection}
+    \label{fig:dapicontrastproj}
+\end{subfigure}
+\caption{A comparison of the maximum intensity projection and the maximum 
+contrast projection of the images seen in Fig. \ref{fig:dapizstacks}}
+\end{figure}
+
+\section{Contrast Projection}
+
+The contrast $C_{xy}$ at a point $(x,y)$ is defined here as the variance of 
+all intensity scores in a defined area around this point. In the simplest 
+case, this is is a rectangle centered around $(x,y)$ with side lengths of 
+$2 \cdot w_x + 1$ and $2 \cdot w_y + 1$.
+
+\begin{equation}
+\label{eq:contrast1}
+C_{xy} = \frac{1}{(2 \cdot w_x + 1) \cdot (2 \cdot w_y + 1)} 
+        \sum_{k=x-w_x}^{x+w_x} 
+        \sum_{l=y-w_y}^{y+w_y} (I_{kl} - \langle I_{xy} \rangle)^2
+\end{equation}
+
+\begin{equation}
+\label{eq:contrast2}
+C_{xy} = \frac{1}{A} \sum_{k=x-w_x}^{x+w_x} \sum_{l=y-w_y}^{y+w_y} I_{kl}^2 - 2
+        \cdot I_{kl} \cdot \langle I_{xy} \rangle + \langle I_{xy} \rangle ^2
+\end{equation}
+
+\begin{equation}
+\label{eq:contrast3}
+C_{xy} = {\langle I_{xy} \rangle}^2 - 2 \cdot \langle I_{xy} \rangle \cdot 
+        \frac{1}{A} \sum_{k=x-w_x}^{x+w_x} \sum_{l=y-w_y}^{y+w_y} I_{kl} + 
+        \frac{1}{A} \sum_{k=x-w_x}^{x+w_x} \sum_{l=y-w_y}^{y+w_y} I_{kl}^2
+\end{equation}
+
+where $\langle I_{xy} \rangle$ is the intensity of the image at the position 
+$(x,y)$ and $\langle I_{xy} \rangle$ is the mean intensity of the window 
+centered around $(x,y)$:
+
+\begin{equation}
+\label{eq:mean}
+\begin{split}
+\langle I_{xy} \rangle 
+    &= \frac{1}{(2 \cdot w_x + 1) \cdot (2 \cdot w_y + 1)} 
+        \sum_{k=x-w_x}^{x+w_x} \sum_{l=y-w_y}^{y+w_y} I_{kl} \\
+    &= \frac{1}{A} \sum_{k=x-w_x}^{x+w_x} \sum_{l=y-w_y}^{y+w_y} I_{kl}
+\end{split}
+\end{equation}
+
+This mean intensity over a window can be quickly determined in R with the 
+function \texttt{EBImage::filter2()} by applying a normalized, uniform filter 
+to the image. For brevity, the normalizing constant, i.e. the area of the 
+window, is abbreviated as $A = (2 \cdot w_x + 1) \cdot (2 \cdot w_y + 1)$.
+
+A comparison of Eqs. \ref{eq:mean} and \ref{eq:contrast3} shows that the 
+variance takes on the known form $Var = E[X^2] - (E[X])^2$:
+
+\begin{equation}
+\label{eq:contrast4}
+\begin{split}
+C_{xy} 
+    &= {\langle I_{xy} \rangle}^2 + \frac{1}{A} \sum_{k=x-w_x}^{x+w_x} 
+        \sum_{l=y-w_y}^{y+w_y} I_{kl}^2 - 2 \cdot 
+        {\langle I_{xy} \rangle}^2 \\
+    &= \frac{1}{A} \sum_{k=x-w_x}^{x+w_x} \sum_{l=y-w_y}^{y+w_y} I_{kl}^2 - 
+        {\langle I_{xy} \rangle}^2 = \langle I^2_{xy} \rangle - 
+        {\langle {I}_{xy} \rangle}^2
+\end{split}
+\end{equation}
+
+where the first term of Eq. \ref{eq:contrast4} is the mean of the squared 
+intensities over the same window as used for the mean of the intensities, 
+$\langle I^2_{xy} \rangle = \frac{1}{A} \sum_{k=x-w_x}^{x+w_x} 
+\sum_{l=y-w_y}^{y+w_y} I_{kl}^2$. This quantity can be calculated by the same 
+method as for the intensity using \texttt{EBImage::filter2()}
+
+\section{Application Example}
+
+We will use the image data for the organoids already presented in the 
+Introduction of this vignette. In the most general case, the data should be an 
+array representing a stack of images, i.e. the first two dimensions correspond 
+to the $x-$ and $y-$ dimensions of the image and the third dimension of the 
+array corresponds to the number of images in the stack.
+
+The $cells$ dataset represents a stack of 11 images, each with a size of 
+261 x 251 pixels (see Fig. \ref{fig:dapizstacks})
+<<>>=
+library(MaxContrastProjection)
+library(EBImage)
+data(cells)
+dim(cells)
+@
+
+The maximum contrast projection returns a single image with the same $x-$ and 
+$y-$ dimensions as the input image stack
+
+<<>>=
+max_contrast = contrastProjection(imageStack = cells, w_x = 15, w_y = 15, 
+                                smoothing = 5, brushShape = "box")
+@
+
+$w_x$ and $w_y$ are the radii of the area around each pixel over which to 
+calculate the variance. The area of this window should be at least as large 
+as the structures of interest in the image, otherwise artefacts may occur in 
+the projection. Figs. \ref{fig:windowsizelarge} and \ref{fig:windowsizesmall} 
+show the impact of the window size on the projection quality. If the parameter 
+$w_y$ is not explicitly set, it is assumed to be equal to $w_x$.
+
+<<>>=
+max_contrast_large = contrastProjection(imageStack = cells[30:95, 55:115,], 
+                                        w_x = 15, w_y = 15, smoothing = 5, 
+                                        brushShape = "box")
+max_contrast_small = contrastProjection(imageStack = cells[30:95, 55:115,], 
+                                        w_x = 3, w_y = 3, smoothing = 5, 
+                                        brushShape = "box")
+@
+
+\begin{figure}[!htb]
+\centering
+\begin{subfigure}[b]{0.45\textwidth}
+<<echo=FALSE>>=
+display(max_contrast_large / max(cells), method = "raster")
+@
+    \caption{Large window with $w_x = w_y = 15$}
+    \label{fig:windowsizelarge}
+\end{subfigure}
+\begin{subfigure}[b]{0.45\textwidth}
+<<echo=FALSE>>=
+display(max_contrast_small / max(cells), method = "raster")
+@
+    \caption{Small window with $w_x = w_y = 3$}
+    \label{fig:windowsizesmall}
+\end{subfigure}
+\caption{A comparison of window sizes for the maximum contrast projection on a 
+segment of the \texttt{cells} data set. The small window size 
+($w_x = w_y = 3$) shows some artefacts, i.e. several cells seem to be 
+incorrectly projected from different z-stacks. The large window size 
+($w_x = w_y = 15$) ensures that any single cell is projected from the same 
+z-stack.}
+\end{figure}
+
+Similarily, the \texttt{smoothing} parameter applies a median filter onto the 
+projection index map to avoid harsh jumps between z-stacks. It is unlikely 
+that any given object would rapidly fluctuate between different focal plains 
+and the median filter ensures the smoothness of the projection.
+
+The \texttt{brushShape} parameter indicates the shape of the window to be used 
+when determining the contrast at each pixel. By default ("box"), this is a 
+rectangle with the side lengths $2 \cdot w_x + 1$ and $2 \cdot w_y + 1$. 
+Currently supported is also a circle ("disc"). Depending on the geometry of 
+the structures of interest in the image, different window shapes may have an 
+impact on the quality of the projection. For radially symmetrical shapes, 
+such as "disc", the parameter $w_y$ is assumed to be equal to $w_x$ regardless 
+of whether it was explicitly defined.
+
+It is also possible to retrieve the actual contrast values as well as the 
+projection index map. The contrast stack is simply the contrast, i.e. 
+variance, for every single pixel of every image in the input image stack. 
+The projection index map then effectively indicates the z-layer with the 
+maximum contrast for every pixel in the $x-y$-plane (after optional 
+smoothing).
+
+<<>>=
+contrastStack = getContrastStack(imageStack = cells, w_x = 15, w_y = 15, 
+                                brushShape = "box")
+indexMap = getIndexMap(contrastStack = contrastStack, smoothing = 5)
+max_contrast_fromMap = projection_fromMap(imageStack = cells, 
+                                        indexMap = indexMap)
+@
+
+The maximum contrast projection can then be executed with just the image 
+stack as well as the index map using \texttt{projection{\_}fromMap}. In 
+fact, any projection index map can be used here so long as all its values 
+lie between $1$ and the number of z-stacks in the input image stack.
+
+A problem of the contrast projection is that if an object lies in multiple 
+focal planes, the contrast projection generates artifical boundaries between 
+these individual areas. This is an unavoidable consequence of imaging an 
+object in discrete layers. Fig. \ref{fig:interpolation} shows what this looks 
+like. In principle, the projection index map is blurred, so that boundaries 
+between focal regions are softened. The projection is then a weighted linear 
+combination of two values. For example, if the projection index map at a 
+given pixel $(x, y)$ has a value of $7.4$, then the value of that pixel in the 
+projection is $I_{xy} = 0.6 \cdot I_{xy}^{(7)} + 0.4 \cdot I_{xy}^{(8)}$, 
+where $I_{xy}^{(j)}$ is the intensity of the pixel in the $j$-th layer of 
+image stack.
+
+\begin{figure}[!htb]
+\centering
+\begin{subfigure}[b]{0.45\textwidth}
+    \includegraphics[width=\textwidth]{imgs/no_interpolation.eps}
+    \caption{No interpolation}
+    \label{fig:interpolation_no}
+\end{subfigure}
+\begin{subfigure}[b]{0.45\textwidth}
+    \includegraphics[width=\textwidth]{imgs/with_interpolation.eps}
+    \caption{With interpolation}
+    \label{fig:interpolation_yes}
+\end{subfigure}
+\caption{A comparison of the effect of linear interpolation on the maximum 
+contrast projection. Note that the central area in Fig. 
+\ref{fig:interpolation_no} is distinctly separated from the outside of the 
+organoid. This separation is undesirable as it may lead to issues with image 
+segmentation later on.}
+\label{fig:interpolation}
+\end{figure}
+
+Lastly, this package also includes the possibility for other projection types. 
+Currently, these are the maximum and minimum intensity projection, the mean 
+and median intensity projection, the standard deviation projection, which 
+calculates the standard deviation of the z-stack at each pixel in the 
+$x-y$-plane, and the sum projection, which simply adds together all the values 
+of the z-stack at each pixel in the $x-y$-plane.
+
+<<>>=
+max_intensity_proj = intensityProjection(imageStack = cells, projType = "max")
+min_intensity_proj = intensityProjection(imageStack = cells, projType = "min")
+mean_intensity_proj = intensityProjection(imageStack = cells, 
+                                        projType = "mean")
+median_intensity_proj = intensityProjection(imageStack = cells, 
+                                            projType = "median")
+sd_intensity_proj = intensityProjection(imageStack = cells, projType = "sd")
+sum_intensity_proj = intensityProjection(imageStack = cells, projType = "sum")
+@
+
+\section{Session Info}
+<<sessioninfo, results='asis'>>=
+toLatex(sessionInfo())
+@
+
+\end{document}
