@@ -39,8 +39,9 @@ based projections. This package is distributed as part of the \Bioconductor{}
 project and can be installed by starting \R{} and running:
 
 <<eval=FALSE>>=
-source("https://bioconductor.org/biocLite.R")
-biocLite("MaxContrastProjection")
+if (!requireNamespace("BiocManager", quietly=TRUE))
+    install.packages("BiocManager")
+BiocManager::install("MaxContrastProjection")
 @
 
 \section{Introduction}
