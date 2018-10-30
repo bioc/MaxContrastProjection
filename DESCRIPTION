@@ -2,7 +2,7 @@ Package: MaxContrastProjection
 Type: Package
 Title: Perform a maximum contrast projection of 3D images along the
         z-dimension into 2D
-Version: 1.6.0
+Version: 1.7.0
 Date: 2017-02-08
 Author: Jan Sauer, Bernd Fischer
 Maintainer: Jan Sauer <jan.sauer@dkfz-heidelberg.de>
