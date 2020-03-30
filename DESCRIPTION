@@ -2,7 +2,7 @@ Package: MaxContrastProjection
 Type: Package
 Title: Perform a maximum contrast projection of 3D images along the
         z-dimension into 2D
-Version: 1.11.0
+Version: 1.11.1
 Date: 2017-02-08
 Author: Jan Sauer, Bernd Fischer
 Maintainer: Jan Sauer <jan.sauer@dkfz-heidelberg.de>
@@ -27,3 +27,4 @@ Suggests: knitr, BiocStyle, testthat
 SystemRequirements: GNU make
 biocViews: ImmunoOncology, CellBasedAssays, Preprocessing, Software, Visualization
 RoxygenNote: 6.0.1
+PackageStatus: Deprecated
